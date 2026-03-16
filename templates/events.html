@@ -7,9 +7,15 @@
 {% block main_content %}
 {% set events = load_data(path="/_data/events.yml") %}
 
+<div class="events-intro" style="text-align: center; max-width: 700px; margin: 0 auto 2rem auto;">
+  <p>Come meet us in person - join us at an upcoming Valkey event near you!</p>
+  <p>Want to host a meetup in your city? Check out our <a href="/community/meetup-groups/">Meetup Groups charter</a> or or drop us a message in <a href="https://valkey-oss-developer.slack.com/archives/C0AL7GL1YSZ">#meetup-groups</a> on <a href="https://valkey.io/slack/">Valkey Slack</a>.</p>
+</div>
+
 <div class="events-calendar">
   <div class="events-legend">
-    <span class="legend-item"><span class="legend-dot first-party"></span> Valkey Events</span>
+    <span class="legend-item"><span class="legend-dot first-party"></span> First Party</span>
+    <span class="legend-item"><span class="legend-dot valkey-meetup"></span> Valkey Meetup</span>
     <span class="legend-item"><span class="legend-dot third-party"></span> Third Party</span>
   </div>
 
@@ -36,6 +42,7 @@
     {
       title: "{{ event.title | safe }}",
       date: "{{ event.date | safe }}",
+      endDate: "{{ event.end_date | default(value='') | safe }}",
       type: "{{ event.type | safe }}",
       location: "{{ event.location | safe }}",
       locationUrl: "{{ event.location_url | safe }}",
@@ -89,7 +96,14 @@
 
     // Build event lookup by day
     var byDay = {};
-    evts.forEach(function(e) { var d = parseInt(e.date.substring(8, 10)); if (!byDay[d]) byDay[d] = []; byDay[d].push(e); });
+    evts.forEach(function(e) {
+      var startD = parseInt(e.date.substring(8, 10));
+      var endD = e.endDate ? parseInt(e.endDate.substring(8, 10)) : startD;
+      for (var dd = startD; dd <= endD; dd++) {
+        if (!byDay[dd]) byDay[dd] = [];
+        byDay[dd].push(e);
+      }
+    });
 
     document.getElementById('cal-title').textContent = monthNames[month] + ' ' + year;
 
@@ -101,7 +115,11 @@
       if (hasEvents) {
         var labels = '';
         hasEvents.forEach(function(e) {
-          labels += '<a href="' + e.url + '" class="event-label ' + e.type + '">' + e.title + '</a>';
+          if (e.url) {
+            labels += '<a href="' + e.url + '" class="event-label ' + e.type + '">' + e.title + '</a>';
+          } else {
+            labels += '<span class="event-label ' + e.type + '">' + e.title + '</span>';
+          }
         });
         html += '<div class="calendar-day has-event"><span class="day-num">' + d + '</span>' + labels + '</div>';
       } else {
@@ -130,18 +148,38 @@
   }
 
   // Render all event cards once
-  var allEvents = events.slice().sort(function(a, b) { return b.date.localeCompare(a.date); });
+  function badgeLabel(type) {
+    if (type === 'first-party') return 'First Party';
+    if (type === 'valkey-meetup') return 'Valkey Meetup';
+    return 'Third Party';
+  }
+
+  function formatDateRange(startDate, endDate) {
+    var startObj = new Date(startDate + 'T00:00:00');
+    var startStr = monthNames[startObj.getMonth()] + ' ' + startObj.getDate();
+    if (!endDate) return startStr + ', ' + startObj.getFullYear();
+    var endObj = new Date(endDate + 'T00:00:00');
+    if (startObj.getMonth() === endObj.getMonth()) {
+      return startStr + '–' + endObj.getDate() + ', ' + endObj.getFullYear();
+    }
+    return startStr + ' – ' + monthNames[endObj.getMonth()] + ' ' + endObj.getDate() + ', ' + endObj.getFullYear();
+  }
+
+  var today = new Date().toISOString().substring(0, 10);
+  var upcomingEvents = events.filter(function(e) { return e.date >= today; }).sort(function(a, b) { return a.date.localeCompare(b.date); });
+  var pastEvents = events.filter(function(e) { return e.date < today; }).sort(function(a, b) { return b.date.localeCompare(a.date); });
+  var allEvents = upcomingEvents.concat(pastEvents);
   var listHtml = '';
   allEvents.forEach(function(e) {
-    var dateObj = new Date(e.date + 'T00:00:00');
-    var dateStr = monthNames[dateObj.getMonth()] + ' ' + dateObj.getDate() + ', ' + dateObj.getFullYear();
+    var dateStr = formatDateRange(e.date, e.endDate);
     var eventMonth = e.date.substring(0, 7);
-    var today = new Date().toISOString().substring(0, 10);
+    var titleHtml = e.url ? '<a href="' + e.url + '">' + e.title + '</a>' : e.title;
+    var locationHtml = e.locationUrl ? '<a href="' + e.locationUrl + '" target="_blank">' + e.location + '</a>' : e.location;
     listHtml += '<div class="event-card' + (e.date < today ? ' past' : '') + '" data-month="' + eventMonth + '">' +
-      '<span class="event-card-badge ' + e.type + '">' + (e.type === 'first-party' ? 'Valkey Event' : 'Third Party') + '</span>' +
-      '<h3><a href="' + e.url + '">' + e.title + '</a></h3>' +
+      '<span class="event-card-badge ' + e.type + '">' + badgeLabel(e.type) + '</span>' +
+      '<h3>' + titleHtml + '</h3>' +
       '<p class="event-card-date">' + dateStr + '</p>' +
-      '<p class="event-card-location"><a href="' + e.locationUrl + '" target="_blank">' + e.location + '</a></p>' +
+      '<p class="event-card-location">' + locationHtml + '</p>' +
       '</div>';
   });
   document.getElementById('events-list').innerHTML = listHtml;

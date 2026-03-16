@@ -2462,6 +2462,7 @@ blockquote {
 
     &.first-party { background-color: $blue-300; }
     &.third-party { background-color: $green-200; }
+    &.valkey-meetup { background-color: $yellow-000; }
   }
 }
 
@@ -2552,6 +2553,7 @@ blockquote {
 
   &.first-party { background-color: $blue-300; }
   &.third-party { background-color: $green-200; }
+  &.valkey-meetup { background-color: $yellow-000; }
   &:hover { opacity: 0.85; }
   &, &:visited { color: $white; }
 }
@@ -2593,6 +2595,7 @@ blockquote {
 
       &.first-party { background-color: $blue-300; }
       &.third-party { background-color: $green-200; }
+      &.valkey-meetup { background-color: $yellow-000; }
     }
 
     .event-card-date {
